@@ -2,3 +2,4 @@
 .vscode
 tmp/*
 .air.toml
+pg_data

@@ -45,20 +45,20 @@ func (server *APIServer) HandleUserParamRoutes(response http.ResponseWriter, req
 	id, err := strconv.Atoi(mux.Vars(request)["id"])
 
 	if err != nil {
-		utils.WriteJSON(response, 400, utils.ApiError{Error: "id must be a number."})
+		return utils.WriteJSON(response, 400, utils.ApiError{Error: "id must be a number."})
 	}
 
 	if request.Method == "GET" {
 		return routes.GetSingleUser(response, request, id)
 	}
 	if request.Method == "PUT" {
-		//update user
+		return routes.UpdateUser(response, request, id)
 	}
 	if request.Method == "DELETE" {
-		//delete user
+		return routes.DeleteUser(response, request, id)
 	}
 
-	return utils.WriteJSON(response, 400, utils.ApiError{Error: "Method not supported."})
+	return utils.WriteJSON(response, 403, utils.ApiError{Error: "Method not supported."})
 }
 
 func (server APIServer) GetPort() string {

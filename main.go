@@ -5,6 +5,6 @@ import (
 )
 
 func main() {
-	server := config.NewAPIServer(":3000")
+	server := config.NewAPIServer(":8080")
 	server.Run()
 }

@@ -13,6 +13,12 @@ type ResponseUser struct {
 	Email     string `json:"email"`
 }
 
+type UpdateUserBody struct {
+	FirstName string `json:"first_name"`
+	Email     string `json:"email"`
+	Password  string `json:"password"`
+}
+
 func CreateResponseUser(user models.User) ResponseUser {
 	return ResponseUser{ID: user.ID, FirstName: user.FirstName, Email: user.Email}
 }
@@ -54,4 +60,45 @@ func CreateUser(response http.ResponseWriter, request *http.Request) error {
 	database.Create(&user)
 
 	return utils.WriteJSON(response, 201, CreateResponseUser(user))
+}
+
+func UpdateUser(response http.ResponseWriter, request *http.Request, id int) error {
+	var user models.User
+	var updatedUser UpdateUserBody
+	database := database.GetInstance().GetDB()
+
+	if result := database.Find(&user, "id = ?", id); result.RowsAffected == 0 {
+		return utils.WriteJSON(response, 404, utils.ApiError{Error: "User not found."})
+	}
+
+	if errors := utils.ReadJSON(request.Body, &updatedUser); len(errors) > 0 {
+		return utils.WriteJSON(response, 400, errors)
+	}
+
+	if updatedUser.FirstName != "" {
+		user.FirstName = updatedUser.FirstName
+	}
+	if updatedUser.Email != "" {
+		user.Email = updatedUser.Email
+	}
+	if updatedUser.Password != "" {
+		user.EncodePassword(updatedUser.Password)
+	}
+
+	database.Save(&user)
+
+	return utils.WriteJSON(response, 201, CreateResponseUser(user))
+}
+
+func DeleteUser(response http.ResponseWriter, request *http.Request, id int) error {
+	var user models.User
+	database := database.GetInstance().GetDB()
+
+	if result := database.Find(&user, "id = ?", id); result.RowsAffected == 0 {
+		return utils.WriteJSON(response, 404, utils.ApiError{Error: "User not found."})
+	}
+
+	database.Delete(user)
+
+	return utils.WriteJSON(response, 201, map[string]string{"Success": "User successfully deleted."})
 }

@@ -25,8 +25,8 @@ func MakeHTTPHandleFunc(function apiFunc) http.HandlerFunc {
 }
 
 func WriteJSON(response http.ResponseWriter, status int, value any) error {
+	response.Header().Add("Content-Type", "application/json")
 	response.WriteHeader(status)
-	response.Header().Set("Content-Type", "application/json")
 
 	return json.NewEncoder(response).Encode(value)
 }
