@@ -5,7 +5,7 @@ go 1.21.0
 require (
 	github.com/gin-gonic/gin v1.9.1
 	github.com/go-playground/validator/v10 v10.15.4
-	github.com/gorilla/mux v1.8.0
+	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/joho/godotenv v1.5.1
 	gorm.io/driver/postgres v1.5.2
 	gorm.io/gorm v1.25.4

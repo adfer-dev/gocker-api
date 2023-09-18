@@ -8,6 +8,7 @@ import (
 
 func initRoutes(app *gin.Engine) {
 	routes.InitUserRoutes(app)
+	routes.InitAuthRoutes(app)
 }
 
 func main() {

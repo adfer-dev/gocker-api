@@ -39,7 +39,7 @@ func GetInstance() *Database {
 			log.Fatal(dbErr.Error())
 		}
 
-		db.AutoMigrate(&models.User{})
+		db.AutoMigrate(&models.User{}, &models.Token{})
 		databaseInstance = &Database{db}
 	}
 

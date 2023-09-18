@@ -26,11 +26,11 @@ func CreateResponseUser(user models.User) ResponseUser {
 }
 
 func InitUserRoutes(app *gin.Engine) {
-	app.GET("/api/v1/users", getAllUsers)
-	app.GET("/api/v1/users/:id", utils.ValidateIdParam, getSingleUser)
-	app.POST("/api/v1/users", createUser)
-	app.PUT("/api/v1/users/:id", utils.ValidateIdParam, updateUser)
-	app.DELETE("/api/v1/users/:id", utils.ValidateIdParam, deleteUser)
+	app.GET("/api/v1/users", utils.Auth, getAllUsers)
+	app.GET("/api/v1/users/:id", utils.Auth, utils.ValidateIdParam, getSingleUser)
+	app.POST("/api/v1/users", utils.Auth, createUser)
+	app.PUT("/api/v1/users/:id", utils.Auth, utils.ValidateIdParam, updateUser)
+	app.DELETE("/api/v1/users/:id", utils.Auth, utils.ValidateIdParam, deleteUser)
 }
 
 func getAllUsers(c *gin.Context) {
