@@ -10,7 +10,7 @@ services:
       - 8080:8080
     restart: on-failure
     volumes:
-      - .:/app:ro
+      - .:/app
     depends_on:
       - postgresdb
     networks:

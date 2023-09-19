@@ -5,9 +5,11 @@ import (
 	"gocker-api/database"
 	"gocker-api/models"
 	"gocker-api/utils"
+	"net/http"
 	"os"
 
-	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
+	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 )
 
@@ -27,75 +29,93 @@ type TokenResponse struct {
 	TokenValue string `json:"token"`
 }
 
-func InitAuthRoutes(app *gin.Engine) {
-	app.POST("/api/v1/auth/register", registerUser)
-	app.POST("/api/v1/auth/authenticate", authenticateUser)
+func InitAuthRoutes(router *mux.Router) {
+	router.HandleFunc("/api/v1/auth/register", utils.ParseToHandlerFunc(registerUser)).Methods("POST")
+	router.HandleFunc("/api/v1/auth/authenticate", utils.ParseToHandlerFunc(authenticateUser)).Methods("POST")
 }
 
 func CreateResponseToken(token models.Token) TokenResponse {
 	return TokenResponse{ID: token.ID, TokenValue: token.TokenValue}
 }
 
-func registerUser(c *gin.Context) {
+func registerUser(res http.ResponseWriter, req *http.Request) error {
 	var userBody UserBody
 
-	if parseErr := c.BindJSON(&userBody); parseErr != nil {
-		c.JSON(400, utils.ApiError{Error: parseErr.Error()})
-	} else if validationErrors := utils.ValidateBody(userBody); len(validationErrors) != 0 {
-		c.JSON(400, validationErrors)
-	} else {
-		database := database.GetInstance().GetDB()
-		user := models.User{
-			FirstName: userBody.FirstName,
-			Email:     userBody.Email,
-			Password:  userBody.Password,
-		}
+	if parseErr := utils.ReadJSON(req.Body, &userBody); parseErr != nil {
+		if validationErrs, ok := parseErr.(validator.ValidationErrors); ok {
+			validationErrors := make([]utils.ApiError, 0)
 
-		if envErr := godotenv.Load(); envErr != nil {
-			c.JSON(500, utils.ApiError{Error: envErr.Error()})
-		}
-
-		if user.Email == os.Getenv("ADMIN_EMAIL") {
-			user.SetRole("ADMIN")
-		} else {
-			user.SetRole("USER")
-		}
-		user.EncodePassword(user.Password)
-		database.Create(&user)
-
-		token, tokenErr := auth.GenerateToken(user)
-
-		if tokenErr != nil {
-			c.JSON(500, utils.ApiError{Error: tokenErr.Error()})
-		} else {
-			token := models.Token{
-				TokenValue: token,
-				UserRefer:  user.ID,
+			for _, validationErr := range validationErrs {
+				validationErrors = append(validationErrors, utils.ApiError{Error: "Field " + validationErr.Field() + " must be provided"})
 			}
-			database.Create(&token)
-			c.JSON(201, CreateResponseToken(token))
+
+			return utils.WriteJSON(res, 400, validationErrors)
+		} else {
+			return utils.WriteJSON(res, 400, utils.ApiError{Error: "not valid json."})
 		}
 	}
+
+	database := database.GetInstance().GetDB()
+	user := models.User{
+		FirstName: userBody.FirstName,
+		Email:     userBody.Email,
+		Password:  userBody.Password,
+	}
+
+	if envErr := godotenv.Load(); envErr != nil {
+		return utils.WriteJSON(res, 500, utils.ApiError{Error: envErr.Error()})
+	}
+
+	if user.Email == os.Getenv("ADMIN_EMAIL") {
+		user.SetRole("ADMIN")
+	} else {
+		user.SetRole("USER")
+	}
+	user.EncodePassword(user.Password)
+	database.Create(&user)
+
+	tokenString, tokenErr := auth.GenerateToken(user)
+
+	if tokenErr != nil {
+		return utils.WriteJSON(res, 500, utils.ApiError{Error: tokenErr.Error()})
+	}
+
+	token := models.Token{
+		TokenValue: tokenString,
+		UserRefer:  user.ID,
+	}
+	database.Create(&token)
+	return utils.WriteJSON(res, 201, CreateResponseToken(token))
+
 }
 
-func authenticateUser(c *gin.Context) {
+func authenticateUser(res http.ResponseWriter, req *http.Request) error {
 	var userAuth UserAuthenticateBody
 	var user models.User
 	var token models.Token
 
-	if parseErr := c.BindJSON(&userAuth); parseErr != nil {
-		c.JSON(400, utils.ApiError{Error: parseErr.Error()})
-	} else if validationErrors := utils.ValidateBody(userAuth); len(validationErrors) != 0 {
-		c.JSON(400, validationErrors)
-	} else {
-		database := database.GetInstance().GetDB()
-		if result := database.First(&user, "email LIKE ?", userAuth.Email); result.RowsAffected == 0 {
-			c.JSON(404, utils.ApiError{Error: "user not found"})
-		} else if err := user.ComparePassword(userAuth.Password); err != nil {
-			c.JSON(400, utils.ApiError{Error: "wrong password. Please, try again"})
+	if parseErr := utils.ReadJSON(req.Body, &userAuth); parseErr != nil {
+		if errors, ok := parseErr.(validator.ValidationErrors); ok {
+			validationErrors := make([]utils.ApiError, 0)
+
+			for _, validationErr := range errors {
+				validationErrors = append(validationErrors, utils.ApiError{Error: "Field " + validationErr.Field() + " must be provided"})
+			}
+
+			return utils.WriteJSON(res, 400, validationErrors)
 		} else {
-			database.Find(&token, "user_refer = ?", user.ID)
-			c.JSON(200, CreateResponseToken(token))
+			return utils.WriteJSON(res, 400, utils.ApiError{Error: "not valid json."})
 		}
 	}
+
+	database := database.GetInstance().GetDB()
+
+	if result := database.First(&user, "email LIKE ?", userAuth.Email); result.RowsAffected == 0 {
+		return utils.WriteJSON(res, 404, utils.ApiError{Error: "user not found"})
+	} else if err := user.ComparePassword(userAuth.Password); err != nil {
+		return utils.WriteJSON(res, 400, utils.ApiError{Error: "wrong password. Please, try again"})
+	}
+
+	database.Find(&token, "user_refer = ?", user.ID)
+	return utils.WriteJSON(res, 200, CreateResponseToken(token))
 }

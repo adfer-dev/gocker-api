@@ -4,9 +4,11 @@ import (
 	"gocker-api/database"
 	"gocker-api/models"
 	"gocker-api/utils"
+	"net/http"
 	"strconv"
 
-	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
+	"github.com/gorilla/mux"
 )
 
 type ResponseUser struct {
@@ -25,15 +27,37 @@ func CreateResponseUser(user models.User) ResponseUser {
 	return ResponseUser{ID: user.ID, FirstName: user.FirstName, Email: user.Email}
 }
 
-func InitUserRoutes(app *gin.Engine) {
-	app.GET("/api/v1/users", utils.Auth, getAllUsers)
-	app.GET("/api/v1/users/:id", utils.Auth, utils.ValidateIdParam, getSingleUser)
-	app.POST("/api/v1/users", utils.Auth, createUser)
-	app.PUT("/api/v1/users/:id", utils.Auth, utils.ValidateIdParam, updateUser)
-	app.DELETE("/api/v1/users/:id", utils.Auth, utils.ValidateIdParam, deleteUser)
+func InitUserRoutes(router *mux.Router) {
+	router.HandleFunc("/api/v1/users", utils.ParseToHandlerFunc(handleUserRoutes))
+	router.HandleFunc("/api/v1/users/{id}", utils.ParseToHandlerFunc(handleUserParamRoutes))
 }
 
-func getAllUsers(c *gin.Context) {
+func handleUserRoutes(res http.ResponseWriter, req *http.Request) error {
+
+	if req.Method == "GET" {
+		return getAllUsers(res, req)
+	} else if req.Method == "POST" {
+		return createUser(res, req)
+	} else {
+		return utils.WriteJSON(res, 400, utils.ApiError{Error: "Method not allowed"})
+	}
+}
+
+func handleUserParamRoutes(res http.ResponseWriter, req *http.Request) error {
+	id, _ := strconv.Atoi(mux.Vars(req)["id"])
+
+	if req.Method == "GET" {
+		return getSingleUser(res, req, id)
+	} else if req.Method == "PUT" {
+		return updateUser(res, req, id)
+	} else if req.Method == "DELETE" {
+		return deleteUser(res, req, id)
+	} else {
+		return utils.WriteJSON(res, 400, utils.ApiError{Error: "Method not allowed"})
+	}
+}
+
+func getAllUsers(res http.ResponseWriter, req *http.Request) error {
 	var users []models.User
 	var responseUsers []ResponseUser
 
@@ -44,79 +68,91 @@ func getAllUsers(c *gin.Context) {
 		responseUsers = append(responseUsers, CreateResponseUser(value))
 	}
 
-	c.JSON(200, responseUsers)
+	return utils.WriteJSON(res, 200, responseUsers)
 }
 
-func getSingleUser(c *gin.Context) {
+func getSingleUser(res http.ResponseWriter, req *http.Request, id int) error {
 	var user models.User
-	id, _ := strconv.Atoi(c.Param("id"))
+
 	database := database.GetInstance().GetDB()
 
 	if result := database.Find(&user, "id = ?", id); result.RowsAffected == 0 {
-		c.JSON(404, utils.ApiError{Error: "user not found."})
+		return utils.WriteJSON(res, 404, utils.ApiError{Error: "user not found."})
 	} else {
-		c.JSON(200, CreateResponseUser(user))
+		return utils.WriteJSON(res, 200, CreateResponseUser(user))
 	}
 }
 
-func createUser(c *gin.Context) {
+func createUser(res http.ResponseWriter, req *http.Request) error {
 	var user models.User
 
-	if parseErr := c.BindJSON(&user); parseErr != nil {
-		c.JSON(400, utils.ApiError{Error: parseErr.Error()})
-	} else if validationErrors := utils.ValidateBody(user); len(validationErrors) != 0 {
-		c.JSON(400, validationErrors)
-	} else {
-		user.EncodePassword(user.Password)
-		database := database.GetInstance().GetDB()
-		database.Create(&user)
+	if parseErr := utils.ReadJSON(req.Body, user); parseErr != nil {
+		if errors, ok := parseErr.(validator.ValidationErrors); ok {
+			validationErrors := make([]utils.ApiError, 0)
 
-		c.JSON(201, CreateResponseUser(user))
-	}
-}
+			for _, validationErr := range errors {
+				validationErrors = append(validationErrors, utils.ApiError{Error: "Field " + validationErr.Field() + " must be provided"})
+			}
 
-func updateUser(c *gin.Context) {
-	var user models.User
-	var updatedUser UpdateUserBody
-	id, _ := strconv.Atoi(c.Param("id"))
-	database := database.GetInstance().GetDB()
-
-	if result := database.Find(&user, "id = ?", id); result.RowsAffected == 0 {
-		c.JSON(404, utils.ApiError{Error: "User not found."})
-	} else {
-
-		if parseErr := c.BindJSON(&user); parseErr != nil {
-			c.JSON(400, utils.ApiError{Error: parseErr.Error()})
-		} else if validationErrors := utils.ValidateBody(user); len(validationErrors) > 0 {
-			c.JSON(400, validationErrors)
+			return utils.WriteJSON(res, 400, validationErrors)
 		} else {
-
-			if updatedUser.FirstName != "" {
-				user.FirstName = updatedUser.FirstName
-			}
-			if updatedUser.Email != "" {
-				user.Email = updatedUser.Email
-			}
-			if updatedUser.Password != "" {
-				user.EncodePassword(updatedUser.Password)
-			}
-
-			database.Save(&user)
-
-			c.JSON(201, CreateResponseUser(user))
+			return utils.WriteJSON(res, 400, utils.ApiError{Error: "not valid json."})
 		}
 	}
+
+	database := database.GetInstance().GetDB()
+	database.Create(&user)
+
+	return utils.WriteJSON(res, 201, CreateResponseUser(user))
 }
 
-func deleteUser(c *gin.Context) {
+func updateUser(res http.ResponseWriter, req *http.Request, id int) error {
 	var user models.User
-	id, _ := strconv.Atoi(c.Param("id"))
+	var updatedUser UpdateUserBody
+
 	database := database.GetInstance().GetDB()
 
 	if result := database.Find(&user, "id = ?", id); result.RowsAffected == 0 {
-		c.JSON(404, utils.ApiError{Error: "User not found."})
+		return utils.WriteJSON(res, 404, utils.ApiError{Error: "User not found."})
+	}
+
+	if parseErr := utils.ReadJSON(req.Body, updatedUser); parseErr != nil {
+		if errors, ok := parseErr.(validator.ValidationErrors); ok {
+			validationErrors := make([]utils.ApiError, 0)
+
+			for _, validationErr := range errors {
+				validationErrors = append(validationErrors, utils.ApiError{Error: "Field " + validationErr.Field() + " must be provided"})
+			}
+
+			return utils.WriteJSON(res, 400, validationErrors)
+		} else {
+			return utils.WriteJSON(res, 400, utils.ApiError{Error: "not valid json."})
+		}
+	}
+	if updatedUser.FirstName != "" {
+		user.FirstName = updatedUser.FirstName
+	}
+	if updatedUser.Email != "" {
+		user.Email = updatedUser.Email
+	}
+	if updatedUser.Password != "" {
+		user.EncodePassword(updatedUser.Password)
+	}
+
+	database.Save(&user)
+
+	return utils.WriteJSON(res, 201, CreateResponseUser(user))
+}
+
+func deleteUser(res http.ResponseWriter, req *http.Request, id int) error {
+	var user models.User
+
+	database := database.GetInstance().GetDB()
+
+	if result := database.Find(&user, "id = ?", id); result.RowsAffected == 0 {
+		return utils.WriteJSON(res, 404, utils.ApiError{Error: "User not found."})
 	} else {
 		database.Delete(user)
-		c.JSON(201, map[string]string{"Success": "User successfully deleted."})
+		return utils.WriteJSON(res, 201, map[string]string{"Success": "User successfully deleted."})
 	}
 }

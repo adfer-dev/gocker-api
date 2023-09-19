@@ -9,6 +9,7 @@ import (
 	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 type Database struct {
@@ -38,7 +39,7 @@ func GetInstance() *Database {
 		if dbErr != nil {
 			log.Fatal(dbErr.Error())
 		}
-
+		db.Logger = logger.Default.LogMode(logger.Info)
 		db.AutoMigrate(&models.User{}, &models.Token{})
 		databaseInstance = &Database{db}
 	}

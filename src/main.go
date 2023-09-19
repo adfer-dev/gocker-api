@@ -1,23 +1,12 @@
 package main
 
 import (
-	"gocker-api/routes"
-
-	"github.com/gin-gonic/gin"
+	"gocker-api/config"
+	"log"
 )
 
-func initRoutes(app *gin.Engine) {
-	routes.InitUserRoutes(app)
-	routes.InitAuthRoutes(app)
-}
-
 func main() {
-	gin.SetMode("debug")
-
-	app := gin.Default()
-	app.ForwardedByClientIP = true
-	app.SetTrustedProxies([]string{"127.0.0.1"})
-
-	initRoutes(app)
-	app.Run(":8080")
+	server := config.APIServer{ListenAddress: ":8080"}
+	log.Printf("Server listening at %s\n", server.ListenAddress)
+	log.Fatal(server.Run())
 }
