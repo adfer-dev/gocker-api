@@ -14,7 +14,6 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/gorilla/mux"
-	"github.com/labstack/echo/v4"
 )
 
 type ApiError struct {
@@ -82,16 +81,6 @@ func ValidateIdParam(next http.Handler) http.Handler {
 //UTILITY FUNCTIONS
 
 // Function to validate a request's body.
-func ValidateBody(body interface{}) error {
-	newValidator := validator.New()
-
-	if err := newValidator.Struct(body); err != nil {
-		return echo.ErrBadGateway
-	}
-
-	return nil
-}
-
 func WriteJSON(res http.ResponseWriter, status int, value any) error {
 
 	res.Header().Add("Content-Type", "application/json")
@@ -106,7 +95,7 @@ func ReadJSON(reader io.Reader, body interface{}) error {
 		return deserializeErr
 	}
 
-	if validationErr := ValidateBody(body); validationErr != nil {
+	if validationErr := validateBody(body); validationErr != nil {
 		return validationErr
 	}
 
@@ -114,6 +103,16 @@ func ReadJSON(reader io.Reader, body interface{}) error {
 }
 
 //Auxiliary functions
+
+func validateBody(body interface{}) error {
+	newValidator := validator.New()
+
+	if err := newValidator.Struct(body); err != nil {
+		return err
+	}
+
+	return nil
+}
 
 func checkAuth(res http.ResponseWriter, req *http.Request) error {
 	fullToken := req.Header.Get("Authorization")
@@ -139,7 +138,7 @@ func checkAuth(res http.ResponseWriter, req *http.Request) error {
 
 	database.Find(&user, "email LIKE ?", claims["email"])
 
-	if (req.Method == "POST" || req.Method == "PUT" || req.Method == "DELETE") && user.GetRole() != "ADMIN" {
+	if (req.Method == "POST" || req.Method == "PUT" || req.Method == "DELETE") && user.Role != 1 {
 		return errors.New("method not allowed")
 	}
 

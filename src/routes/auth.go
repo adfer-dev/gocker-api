@@ -13,12 +13,6 @@ import (
 	"github.com/joho/godotenv"
 )
 
-type UserBody struct {
-	FirstName string `json:"first_name" validate:"required"`
-	Email     string `json:"email" validate:"required"`
-	Password  string `json:"password" validate:"required"`
-}
-
 type UserAuthenticateBody struct {
 	Email    string `json:"email" validate:"required"`
 	Password string `json:"password" validate:"required"`
@@ -41,6 +35,7 @@ func CreateResponseToken(token models.Token) TokenResponse {
 func registerUser(res http.ResponseWriter, req *http.Request) error {
 	var userBody UserBody
 
+	// Handle body validation
 	if parseErr := utils.ReadJSON(req.Body, &userBody); parseErr != nil {
 		if validationErrs, ok := parseErr.(validator.ValidationErrors); ok {
 			validationErrors := make([]utils.ApiError, 0)
@@ -55,23 +50,28 @@ func registerUser(res http.ResponseWriter, req *http.Request) error {
 		}
 	}
 
-	database := database.GetInstance().GetDB()
-	user := models.User{
-		FirstName: userBody.FirstName,
-		Email:     userBody.Email,
-		Password:  userBody.Password,
-	}
-
 	if envErr := godotenv.Load(); envErr != nil {
 		return utils.WriteJSON(res, 500, utils.ApiError{Error: envErr.Error()})
 	}
 
-	if user.Email == os.Getenv("ADMIN_EMAIL") {
-		user.SetRole("ADMIN")
+	var userRole models.UserRole
+	database := database.GetInstance().GetDB()
+
+	// Set registered user's role
+	if userBody.Email == os.Getenv("ADMIN_EMAIL") {
+		userRole = models.Admin
 	} else {
-		user.SetRole("USER")
+		userRole = models.Standard
 	}
-	user.EncodePassword(user.Password)
+
+	user := models.User{
+		FirstName: userBody.FirstName,
+		Email:     userBody.Email,
+		Password:  nil,
+		Role:      userRole,
+	}
+
+	user.EncodePassword(userBody.Password)
 	database.Create(&user)
 
 	tokenString, tokenErr := auth.GenerateToken(user)
@@ -113,7 +113,7 @@ func authenticateUser(res http.ResponseWriter, req *http.Request) error {
 	if result := database.First(&user, "email LIKE ?", userAuth.Email); result.RowsAffected == 0 {
 		return utils.WriteJSON(res, 404, utils.ApiError{Error: "user not found"})
 	} else if err := user.ComparePassword(userAuth.Password); err != nil {
-		return utils.WriteJSON(res, 400, utils.ApiError{Error: "wrong password. Please, try again"})
+		return utils.WriteJSON(res, 400, utils.ApiError{Error: err.Error()})
 	}
 
 	database.Find(&token, "user_refer = ?", user.ID)

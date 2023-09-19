@@ -1,53 +1,100 @@
 package models
 
 import (
-	"golang.org/x/crypto/bcrypt"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
+	"errors"
+	"io"
+	"os"
+
+	"github.com/joho/godotenv"
 )
 
 type UserRole int
 
 const (
-	adminRole UserRole = iota
-	userRole
+	Admin UserRole = iota + 1
+	Standard
 )
 
 type User struct {
 	ID        uint   `json:"id" gorm:"primaryKey"`
 	FirstName string `json:"first_name" validate:"required"`
 	Email     string `json:"email" validate:"required"`
-	Password  string `json:"password" validate:"required"`
+	Password  []byte `json:"password" validate:"required"`
 	Role      UserRole
 }
 
-func (user User) GetRole() string {
-	switch user.Role {
-	case adminRole:
-		return "ADMIN"
-	case userRole:
-		return "USER"
-	default:
-		return "USER"
-	}
-}
-
-func (user *User) SetRole(role string) {
-	switch role {
-	case "ADMIN":
-		user.Role = adminRole
-	case "USER":
-		user.Role = userRole
-	}
-}
-
+// Function that encodes user's password using AES encryption.
 func (user *User) EncodePassword(password string) error {
-	hashedPass, err := bcrypt.GenerateFromPassword([]byte(password), 16)
-	user.Password = string(hashedPass)
+	key, envErr := getPasswordKey()
 
-	return err
+	if envErr != nil {
+		return envErr
+	}
+
+	cipherBlock, cipherErr := aes.NewCipher([]byte(key))
+
+	if cipherErr != nil {
+		return cipherErr
+	}
+
+	gcm, gcmErr := cipher.NewGCM(cipherBlock)
+
+	if gcmErr != nil {
+		return gcmErr
+	}
+
+	nonce := make([]byte, gcm.NonceSize())
+
+	if _, readErr := io.ReadFull(rand.Reader, nonce); readErr != nil {
+		return readErr
+	}
+
+	user.Password = gcm.Seal(nonce, nonce, []byte(password), nil)
+
+	return nil
 }
 
+// Function that decodes user's password using AES decryption and compares it to the input password.
 func (user User) ComparePassword(password string) error {
-	err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
+	key, envErr := getPasswordKey()
 
-	return err
+	if envErr != nil {
+		return envErr
+	}
+
+	cipherBlock, cipherErr := aes.NewCipher([]byte(key))
+
+	if cipherErr != nil {
+		return cipherErr
+	}
+
+	gcm, gcmErr := cipher.NewGCM(cipherBlock)
+	nonceSize := gcm.NonceSize()
+
+	if gcmErr != nil || (len(user.Password) < nonceSize) {
+		return gcmErr
+	}
+
+	nonce, cipherText := user.Password[:nonceSize], user.Password[nonceSize:]
+
+	passwordText, decryptErr := gcm.Open(nil, []byte(nonce), []byte(cipherText), nil)
+
+	if decryptErr != nil {
+		return decryptErr
+	}
+
+	if string(passwordText) != password {
+		return errors.New("wrong password. Please, try again")
+	}
+
+	return nil
+}
+
+func getPasswordKey() (string, error) {
+	envErr := godotenv.Load()
+
+	return os.Getenv("PASSWORD_KEY"), envErr
 }

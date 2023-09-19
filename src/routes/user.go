@@ -5,16 +5,24 @@ import (
 	"gocker-api/models"
 	"gocker-api/utils"
 	"net/http"
+	"os"
 	"strconv"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/gorilla/mux"
+	"github.com/joho/godotenv"
 )
 
 type ResponseUser struct {
 	ID        uint   `json:"id"`
 	FirstName string `json:"first_name"`
 	Email     string `json:"email"`
+}
+
+type UserBody struct {
+	FirstName string `json:"first_name" validate:"required"`
+	Email     string `json:"email" validate:"required"`
+	Password  string `json:"password" validate:"required"`
 }
 
 type UpdateUserBody struct {
@@ -28,33 +36,11 @@ func CreateResponseUser(user models.User) ResponseUser {
 }
 
 func InitUserRoutes(router *mux.Router) {
-	router.HandleFunc("/api/v1/users", utils.ParseToHandlerFunc(handleUserRoutes))
-	router.HandleFunc("/api/v1/users/{id}", utils.ParseToHandlerFunc(handleUserParamRoutes))
-}
-
-func handleUserRoutes(res http.ResponseWriter, req *http.Request) error {
-
-	if req.Method == "GET" {
-		return getAllUsers(res, req)
-	} else if req.Method == "POST" {
-		return createUser(res, req)
-	} else {
-		return utils.WriteJSON(res, 400, utils.ApiError{Error: "Method not allowed"})
-	}
-}
-
-func handleUserParamRoutes(res http.ResponseWriter, req *http.Request) error {
-	id, _ := strconv.Atoi(mux.Vars(req)["id"])
-
-	if req.Method == "GET" {
-		return getSingleUser(res, req, id)
-	} else if req.Method == "PUT" {
-		return updateUser(res, req, id)
-	} else if req.Method == "DELETE" {
-		return deleteUser(res, req, id)
-	} else {
-		return utils.WriteJSON(res, 400, utils.ApiError{Error: "Method not allowed"})
-	}
+	router.HandleFunc("/api/v1/users", utils.ParseToHandlerFunc(getAllUsers)).Methods("GET")
+	router.HandleFunc("/api/v1/users", utils.ParseToHandlerFunc(createUser)).Methods("POST")
+	router.HandleFunc("/api/v1/users/{id}", utils.ParseToHandlerFunc(getSingleUser)).Methods("GET")
+	router.HandleFunc("/api/v1/users/{id}", utils.ParseToHandlerFunc(updateUser)).Methods("PUT")
+	router.HandleFunc("/api/v1/users/{id}", utils.ParseToHandlerFunc(deleteUser)).Methods("DELETE")
 }
 
 func getAllUsers(res http.ResponseWriter, req *http.Request) error {
@@ -71,8 +57,9 @@ func getAllUsers(res http.ResponseWriter, req *http.Request) error {
 	return utils.WriteJSON(res, 200, responseUsers)
 }
 
-func getSingleUser(res http.ResponseWriter, req *http.Request, id int) error {
+func getSingleUser(res http.ResponseWriter, req *http.Request) error {
 	var user models.User
+	id, _ := strconv.Atoi(mux.Vars(req)["id"])
 
 	database := database.GetInstance().GetDB()
 
@@ -84,13 +71,14 @@ func getSingleUser(res http.ResponseWriter, req *http.Request, id int) error {
 }
 
 func createUser(res http.ResponseWriter, req *http.Request) error {
-	var user models.User
+	var userBody UserBody
 
-	if parseErr := utils.ReadJSON(req.Body, user); parseErr != nil {
-		if errors, ok := parseErr.(validator.ValidationErrors); ok {
+	// Handle body validation
+	if parseErr := utils.ReadJSON(req.Body, &userBody); parseErr != nil {
+		if validationErrs, ok := parseErr.(validator.ValidationErrors); ok {
 			validationErrors := make([]utils.ApiError, 0)
 
-			for _, validationErr := range errors {
+			for _, validationErr := range validationErrs {
 				validationErrors = append(validationErrors, utils.ApiError{Error: "Field " + validationErr.Field() + " must be provided"})
 			}
 
@@ -100,15 +88,37 @@ func createUser(res http.ResponseWriter, req *http.Request) error {
 		}
 	}
 
+	if envErr := godotenv.Load(); envErr != nil {
+		return utils.WriteJSON(res, 500, utils.ApiError{Error: envErr.Error()})
+	}
+
+	var userRole models.UserRole
 	database := database.GetInstance().GetDB()
+
+	// Set registered user's role
+	if userBody.Email == os.Getenv("ADMIN_EMAIL") {
+		userRole = models.Admin
+	} else {
+		userRole = models.Standard
+	}
+
+	user := models.User{
+		FirstName: userBody.FirstName,
+		Email:     userBody.Email,
+		Password:  nil,
+		Role:      userRole,
+	}
+
+	user.EncodePassword(userBody.Password)
 	database.Create(&user)
 
 	return utils.WriteJSON(res, 201, CreateResponseUser(user))
 }
 
-func updateUser(res http.ResponseWriter, req *http.Request, id int) error {
+func updateUser(res http.ResponseWriter, req *http.Request) error {
 	var user models.User
 	var updatedUser UpdateUserBody
+	id, _ := strconv.Atoi(mux.Vars(req)["id"])
 
 	database := database.GetInstance().GetDB()
 
@@ -116,7 +126,7 @@ func updateUser(res http.ResponseWriter, req *http.Request, id int) error {
 		return utils.WriteJSON(res, 404, utils.ApiError{Error: "User not found."})
 	}
 
-	if parseErr := utils.ReadJSON(req.Body, updatedUser); parseErr != nil {
+	if parseErr := utils.ReadJSON(req.Body, &updatedUser); parseErr != nil {
 		if errors, ok := parseErr.(validator.ValidationErrors); ok {
 			validationErrors := make([]utils.ApiError, 0)
 
@@ -144,8 +154,9 @@ func updateUser(res http.ResponseWriter, req *http.Request, id int) error {
 	return utils.WriteJSON(res, 201, CreateResponseUser(user))
 }
 
-func deleteUser(res http.ResponseWriter, req *http.Request, id int) error {
+func deleteUser(res http.ResponseWriter, req *http.Request) error {
 	var user models.User
+	id, _ := strconv.Atoi(mux.Vars(req)["id"])
 
 	database := database.GetInstance().GetDB()
 
