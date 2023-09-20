@@ -19,7 +19,7 @@ func main() {
 	port, isPresent := os.LookupEnv("PORT")
 
 	if isPresent {
-		listenAddress = port
+		listenAddress = ":" + port
 	} else {
 		listenAddress = ":8080"
 	}
