@@ -17,6 +17,7 @@ func (server *APIServer) Run() error {
 	router.Use(utils.AuthMiddleware)
 	router.Use(utils.ValidateIdParam)
 	initRoutes(router)
+
 	return http.ListenAndServe(server.ListenAddress, router)
 }
 

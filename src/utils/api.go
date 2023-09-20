@@ -114,6 +114,7 @@ func validateBody(body interface{}) error {
 	return nil
 }
 
+// Function that performs JWT authentication check
 func checkAuth(res http.ResponseWriter, req *http.Request) error {
 	fullToken := req.Header.Get("Authorization")
 
