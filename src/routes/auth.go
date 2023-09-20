@@ -2,15 +2,13 @@ package routes
 
 import (
 	"gocker-api/auth"
-	"gocker-api/database"
 	"gocker-api/models"
+	"gocker-api/services"
 	"gocker-api/utils"
 	"net/http"
-	"os"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/gorilla/mux"
-	"github.com/joho/godotenv"
 )
 
 type UserAuthenticateBody struct {
@@ -32,8 +30,9 @@ func CreateResponseToken(token models.Token) TokenResponse {
 	return TokenResponse{ID: token.ID, TokenValue: token.TokenValue}
 }
 
+// Function that creates a new user and returns its JWT token
 func registerUser(res http.ResponseWriter, req *http.Request) error {
-	var userBody UserBody
+	var userBody services.UserBody
 
 	// Handle body validation
 	if parseErr := utils.ReadJSON(req.Body, &userBody); parseErr != nil {
@@ -50,29 +49,11 @@ func registerUser(res http.ResponseWriter, req *http.Request) error {
 		}
 	}
 
-	if envErr := godotenv.Load(); envErr != nil {
-		return utils.WriteJSON(res, 500, utils.ApiError{Error: envErr.Error()})
+	user, err := services.CreateUser(userBody)
+
+	if err != nil {
+		return utils.WriteJSON(res, 500, err.Error())
 	}
-
-	var userRole models.UserRole
-	database := database.GetInstance().GetDB()
-
-	// Set registered user's role
-	if userBody.Email == os.Getenv("ADMIN_EMAIL") {
-		userRole = models.Admin
-	} else {
-		userRole = models.Standard
-	}
-
-	user := models.User{
-		FirstName: userBody.FirstName,
-		Email:     userBody.Email,
-		Password:  nil,
-		Role:      userRole,
-	}
-
-	user.EncodePassword(userBody.Password)
-	database.Create(&user)
 
 	tokenString, tokenErr := auth.GenerateToken(user)
 
@@ -84,16 +65,17 @@ func registerUser(res http.ResponseWriter, req *http.Request) error {
 		TokenValue: tokenString,
 		UserRefer:  user.ID,
 	}
-	database.Create(&token)
-	return utils.WriteJSON(res, 201, CreateResponseToken(token))
 
+	services.CreateToken(&token)
+
+	return utils.WriteJSON(res, 201, CreateResponseToken(token))
 }
 
+// Function that returns a user's JWT token, given its email and password
 func authenticateUser(res http.ResponseWriter, req *http.Request) error {
 	var userAuth UserAuthenticateBody
-	var user models.User
-	var token models.Token
 
+	//Validate user auth body
 	if parseErr := utils.ReadJSON(req.Body, &userAuth); parseErr != nil {
 		if errors, ok := parseErr.(validator.ValidationErrors); ok {
 			validationErrors := make([]utils.ApiError, 0)
@@ -108,14 +90,17 @@ func authenticateUser(res http.ResponseWriter, req *http.Request) error {
 		}
 	}
 
-	database := database.GetInstance().GetDB()
+	//Checking if user exists and if password matches
+	user, notFoundErr := services.GetUserByEmail(userAuth.Email)
 
-	if result := database.First(&user, "email LIKE ?", userAuth.Email); result.RowsAffected == 0 {
+	if notFoundErr != nil {
 		return utils.WriteJSON(res, 404, utils.ApiError{Error: "user not found"})
-	} else if err := user.ComparePassword(userAuth.Password); err != nil {
-		return utils.WriteJSON(res, 400, utils.ApiError{Error: err.Error()})
+	} else if wrongPasswordErr := user.ComparePassword(userAuth.Password); wrongPasswordErr != nil {
+		return utils.WriteJSON(res, 400, utils.ApiError{Error: wrongPasswordErr.Error()})
 	}
 
-	database.Find(&token, "user_refer = ?", user.ID)
+	//Not checking err since we have previously checked that user exists
+	token, _ := services.GetTokenByUserRefer(user.ID)
+
 	return utils.WriteJSON(res, 200, CreateResponseToken(token))
 }

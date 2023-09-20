@@ -80,7 +80,6 @@ func ValidateIdParam(next http.Handler) http.Handler {
 
 //UTILITY FUNCTIONS
 
-// Function to validate a request's body.
 func WriteJSON(res http.ResponseWriter, status int, value any) error {
 
 	res.Header().Add("Content-Type", "application/json")
@@ -91,7 +90,7 @@ func WriteJSON(res http.ResponseWriter, status int, value any) error {
 
 func ReadJSON(reader io.Reader, body interface{}) error {
 
-	if deserializeErr := json.NewDecoder(reader).Decode(&body); deserializeErr != nil {
+	if deserializeErr := json.NewDecoder(reader).Decode(body); deserializeErr != nil {
 		return deserializeErr
 	}
 
@@ -104,6 +103,7 @@ func ReadJSON(reader io.Reader, body interface{}) error {
 
 //Auxiliary functions
 
+// Function to validate a request's body.
 func validateBody(body interface{}) error {
 	newValidator := validator.New()
 

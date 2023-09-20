@@ -3,32 +3,19 @@ package routes
 import (
 	"gocker-api/database"
 	"gocker-api/models"
+	"gocker-api/services"
 	"gocker-api/utils"
 	"net/http"
-	"os"
 	"strconv"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/gorilla/mux"
-	"github.com/joho/godotenv"
 )
 
 type ResponseUser struct {
 	ID        uint   `json:"id"`
 	FirstName string `json:"first_name"`
 	Email     string `json:"email"`
-}
-
-type UserBody struct {
-	FirstName string `json:"first_name" validate:"required"`
-	Email     string `json:"email" validate:"required"`
-	Password  string `json:"password" validate:"required"`
-}
-
-type UpdateUserBody struct {
-	FirstName string `json:"first_name"`
-	Email     string `json:"email"`
-	Password  string `json:"password"`
 }
 
 func CreateResponseUser(user models.User) ResponseUser {
@@ -44,11 +31,8 @@ func InitUserRoutes(router *mux.Router) {
 }
 
 func getAllUsers(res http.ResponseWriter, req *http.Request) error {
-	var users []models.User
-	var responseUsers []ResponseUser
-
-	database := database.GetInstance().GetDB()
-	database.Find(&users)
+	users := services.GetAllUsers()
+	var responseUsers []ResponseUser = make([]ResponseUser, 0)
 
 	for _, value := range users {
 		responseUsers = append(responseUsers, CreateResponseUser(value))
@@ -58,20 +42,19 @@ func getAllUsers(res http.ResponseWriter, req *http.Request) error {
 }
 
 func getSingleUser(res http.ResponseWriter, req *http.Request) error {
-	var user models.User
 	id, _ := strconv.Atoi(mux.Vars(req)["id"])
 
-	database := database.GetInstance().GetDB()
+	user, err := services.GetUserById(id)
 
-	if result := database.Find(&user, "id = ?", id); result.RowsAffected == 0 {
-		return utils.WriteJSON(res, 404, utils.ApiError{Error: "user not found."})
-	} else {
-		return utils.WriteJSON(res, 200, CreateResponseUser(user))
+	if err != nil {
+		utils.WriteJSON(res, 404, utils.ApiError{Error: err.Error()})
 	}
+
+	return utils.WriteJSON(res, 200, CreateResponseUser(user))
 }
 
 func createUser(res http.ResponseWriter, req *http.Request) error {
-	var userBody UserBody
+	var userBody services.UserBody
 
 	// Handle body validation
 	if parseErr := utils.ReadJSON(req.Body, &userBody); parseErr != nil {
@@ -88,36 +71,18 @@ func createUser(res http.ResponseWriter, req *http.Request) error {
 		}
 	}
 
-	if envErr := godotenv.Load(); envErr != nil {
-		return utils.WriteJSON(res, 500, utils.ApiError{Error: envErr.Error()})
+	user, err := services.CreateUser(userBody)
+
+	if err != nil {
+		return utils.WriteJSON(res, 500, err.Error())
 	}
-
-	var userRole models.UserRole
-	database := database.GetInstance().GetDB()
-
-	// Set registered user's role
-	if userBody.Email == os.Getenv("ADMIN_EMAIL") {
-		userRole = models.Admin
-	} else {
-		userRole = models.Standard
-	}
-
-	user := models.User{
-		FirstName: userBody.FirstName,
-		Email:     userBody.Email,
-		Password:  nil,
-		Role:      userRole,
-	}
-
-	user.EncodePassword(userBody.Password)
-	database.Create(&user)
 
 	return utils.WriteJSON(res, 201, CreateResponseUser(user))
 }
 
 func updateUser(res http.ResponseWriter, req *http.Request) error {
 	var user models.User
-	var updatedUser UpdateUserBody
+	var updatedUser services.UpdateUserBody
 	id, _ := strconv.Atoi(mux.Vars(req)["id"])
 
 	database := database.GetInstance().GetDB()
