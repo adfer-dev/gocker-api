@@ -1,7 +1,7 @@
-package config
+package api
 
 import (
-	"gocker-api/routes"
+	"gocker-api/handlers"
 	"gocker-api/utils"
 	"net/http"
 
@@ -22,6 +22,6 @@ func (server *APIServer) Run() error {
 }
 
 func initRoutes(router *mux.Router) {
-	routes.InitUserRoutes(router)
-	routes.InitAuthRoutes(router)
+	handlers.InitUserRoutes(router)
+	handlers.InitAuthRoutes(router)
 }

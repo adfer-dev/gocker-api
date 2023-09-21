@@ -32,8 +32,7 @@ func ParseToHandlerFunc(f APIFunc) http.HandlerFunc {
 	}
 }
 
-//MIDDLEWARES
-
+// MIDDLEWARES
 // Middleware function to check if the auth token provided is correct and has not expired.
 func AuthMiddleware(next http.Handler) http.Handler {
 

@@ -1,4 +1,4 @@
-package routes
+package handlers
 
 import (
 	"gocker-api/database"
@@ -23,14 +23,14 @@ func CreateResponseUser(user models.User) ResponseUser {
 }
 
 func InitUserRoutes(router *mux.Router) {
-	router.HandleFunc("/api/v1/users", utils.ParseToHandlerFunc(getAllUsers)).Methods("GET")
-	router.HandleFunc("/api/v1/users", utils.ParseToHandlerFunc(createUser)).Methods("POST")
-	router.HandleFunc("/api/v1/users/{id}", utils.ParseToHandlerFunc(getSingleUser)).Methods("GET")
-	router.HandleFunc("/api/v1/users/{id}", utils.ParseToHandlerFunc(updateUser)).Methods("PUT")
-	router.HandleFunc("/api/v1/users/{id}", utils.ParseToHandlerFunc(deleteUser)).Methods("DELETE")
+	router.HandleFunc("/api/v1/users", utils.ParseToHandlerFunc(handleGetUsers)).Methods("GET")
+	router.HandleFunc("/api/v1/users", utils.ParseToHandlerFunc(handleCreateUser)).Methods("POST")
+	router.HandleFunc("/api/v1/users/{id}", utils.ParseToHandlerFunc(handleGetUser)).Methods("GET")
+	router.HandleFunc("/api/v1/users/{id}", utils.ParseToHandlerFunc(handleUpdateUser)).Methods("PUT")
+	router.HandleFunc("/api/v1/users/{id}", utils.ParseToHandlerFunc(handleDeleteUser)).Methods("DELETE")
 }
 
-func getAllUsers(res http.ResponseWriter, req *http.Request) error {
+func handleGetUsers(res http.ResponseWriter, req *http.Request) error {
 	users := services.GetAllUsers()
 	var responseUsers []ResponseUser = make([]ResponseUser, 0)
 
@@ -41,7 +41,7 @@ func getAllUsers(res http.ResponseWriter, req *http.Request) error {
 	return utils.WriteJSON(res, 200, responseUsers)
 }
 
-func getSingleUser(res http.ResponseWriter, req *http.Request) error {
+func handleGetUser(res http.ResponseWriter, req *http.Request) error {
 	id, _ := strconv.Atoi(mux.Vars(req)["id"])
 
 	user, err := services.GetUserById(id)
@@ -53,7 +53,7 @@ func getSingleUser(res http.ResponseWriter, req *http.Request) error {
 	return utils.WriteJSON(res, 200, CreateResponseUser(user))
 }
 
-func createUser(res http.ResponseWriter, req *http.Request) error {
+func handleCreateUser(res http.ResponseWriter, req *http.Request) error {
 	var userBody services.UserBody
 
 	// Handle body validation
@@ -80,7 +80,7 @@ func createUser(res http.ResponseWriter, req *http.Request) error {
 	return utils.WriteJSON(res, 201, CreateResponseUser(user))
 }
 
-func updateUser(res http.ResponseWriter, req *http.Request) error {
+func handleUpdateUser(res http.ResponseWriter, req *http.Request) error {
 	var user models.User
 	var updatedUser services.UpdateUserBody
 	id, _ := strconv.Atoi(mux.Vars(req)["id"])
@@ -119,7 +119,7 @@ func updateUser(res http.ResponseWriter, req *http.Request) error {
 	return utils.WriteJSON(res, 201, CreateResponseUser(user))
 }
 
-func deleteUser(res http.ResponseWriter, req *http.Request) error {
+func handleDeleteUser(res http.ResponseWriter, req *http.Request) error {
 	var user models.User
 	id, _ := strconv.Atoi(mux.Vars(req)["id"])
 

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"gocker-api/config"
+	"gocker-api/api"
 	"log"
 	"os"
 
@@ -24,7 +24,7 @@ func main() {
 		listenAddress = ":8080"
 	}
 
-	server := config.APIServer{ListenAddress: listenAddress}
+	server := api.APIServer{ListenAddress: listenAddress}
 	log.Printf("Server listening at %s\n", server.ListenAddress)
 	log.Fatal(server.Run())
 }

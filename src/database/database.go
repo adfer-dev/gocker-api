@@ -39,6 +39,7 @@ func GetInstance() *Database {
 		if dbErr != nil {
 			log.Fatal(dbErr.Error())
 		}
+
 		db.Logger = logger.Default.LogMode(logger.Info)
 		db.AutoMigrate(&models.User{}, &models.Token{})
 		databaseInstance = &Database{db}

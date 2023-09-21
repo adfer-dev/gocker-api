@@ -1,4 +1,4 @@
-package routes
+package handlers
 
 import (
 	"gocker-api/auth"
@@ -22,8 +22,8 @@ type TokenResponse struct {
 }
 
 func InitAuthRoutes(router *mux.Router) {
-	router.HandleFunc("/api/v1/auth/register", utils.ParseToHandlerFunc(registerUser)).Methods("POST")
-	router.HandleFunc("/api/v1/auth/authenticate", utils.ParseToHandlerFunc(authenticateUser)).Methods("POST")
+	router.HandleFunc("/api/v1/auth/register", utils.ParseToHandlerFunc(handleRegisterUser)).Methods("POST")
+	router.HandleFunc("/api/v1/auth/authenticate", utils.ParseToHandlerFunc(handleAuthenticateUser)).Methods("POST")
 }
 
 func CreateResponseToken(token models.Token) TokenResponse {
@@ -31,7 +31,7 @@ func CreateResponseToken(token models.Token) TokenResponse {
 }
 
 // Function that creates a new user and returns its JWT token
-func registerUser(res http.ResponseWriter, req *http.Request) error {
+func handleRegisterUser(res http.ResponseWriter, req *http.Request) error {
 	var userBody services.UserBody
 
 	// Handle body validation
@@ -72,7 +72,7 @@ func registerUser(res http.ResponseWriter, req *http.Request) error {
 }
 
 // Function that returns a user's JWT token, given its email and password
-func authenticateUser(res http.ResponseWriter, req *http.Request) error {
+func handleAuthenticateUser(res http.ResponseWriter, req *http.Request) error {
 	var userAuth UserAuthenticateBody
 
 	//Validate user auth body

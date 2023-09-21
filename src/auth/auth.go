@@ -10,6 +10,7 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// Returns a new token as string and an error (if there was one)
 func GenerateToken(user models.User) (string, error) {
 	secretKey, envErr := getSecretKey()
 
@@ -32,6 +33,7 @@ func GenerateToken(user models.User) (string, error) {
 	return tokenString, nil
 }
 
+// Validates the token string passed and returns an error if it's not valid
 func ValidateToken(tokenString string) error {
 
 	secretKey, envErr := getSecretKey()
