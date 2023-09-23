@@ -6,9 +6,9 @@ import (
 	"gocker-api/models"
 )
 
-func GetTokenByUserRefer(userRefer uint) (token models.Token, err error) {
+func GetTokensByUserReferAndKind(userRefer uint, kind models.TokenKind) (token models.Token, err error) {
 	database := database.GetInstance().GetDB()
-	result := database.Find(&token, "user_refer = ?", userRefer)
+	result := database.Find(&token, "user_refer = ? AND kind = ?", userRefer, kind)
 
 	if result.RowsAffected == 0 {
 		err = errors.New("user not found")
@@ -20,4 +20,13 @@ func GetTokenByUserRefer(userRefer uint) (token models.Token, err error) {
 func CreateToken(token *models.Token) {
 	database := database.GetInstance().GetDB()
 	database.Create(token)
+}
+
+func UpdateTokenValue(newTokenValue string) (token models.Token) {
+	database := database.GetInstance().GetDB()
+
+	token.TokenValue = newTokenValue
+	database.Save(&token)
+
+	return
 }

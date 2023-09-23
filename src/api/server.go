@@ -2,7 +2,6 @@ package api
 
 import (
 	"gocker-api/handlers"
-	"gocker-api/utils"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -14,8 +13,8 @@ type APIServer struct {
 
 func (server *APIServer) Run() error {
 	router := mux.NewRouter()
-	router.Use(utils.AuthMiddleware)
-	router.Use(utils.ValidateIdParam)
+	router.Use(AuthMiddleware)
+	router.Use(ValidateIdParam)
 	initRoutes(router)
 
 	return http.ListenAndServe(server.ListenAddress, router)
