@@ -1,11 +1,14 @@
 package api
 
 import (
+	"errors"
 	"gocker-api/auth"
+	"gocker-api/services"
 	"gocker-api/utils"
 	"net/http"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/gorilla/mux"
 )
@@ -20,7 +23,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		if allowedEndpoints.MatchString(req.URL.Path) {
 			next.ServeHTTP(res, req)
 		} else {
-			authErr := auth.CheckAuth(res, req)
+			authErr := checkAuth(req)
 
 			//If the token is valid, execute the next function. Otherwise, respond with an error.
 			if authErr == nil {
@@ -51,4 +54,41 @@ func ValidateIdParam(next http.Handler) http.Handler {
 		}
 
 	})
+}
+
+// AUX FUNCTIONS
+
+// Function that performs checks if a request is authorized
+func checkAuth(req *http.Request) error {
+	fullToken := req.Header.Get("Authorization")
+
+	if fullToken == "" || !strings.HasPrefix(fullToken, "Bearer") {
+		return errors.New("authorization token must be provided, starting with Bearer")
+	}
+
+	tokenString := fullToken[7:]
+
+	//Validate token
+	if err := auth.ValidateToken(tokenString); err != nil {
+		//If token is not valid beacause it is expired
+		return err
+	}
+
+	if !services.TokenExists(tokenString) {
+		return errors.New("token revoked")
+	}
+
+	claims, claimsErr := auth.GetClaims(tokenString)
+
+	if claimsErr != nil {
+		return claimsErr
+	}
+
+	user, _ := services.GetUserByEmail(claims["email"].(string))
+
+	if (req.Method == "POST" || req.Method == "PUT" || req.Method == "DELETE") && user.Role != 1 {
+		return errors.New("method not allowed")
+	}
+
+	return nil
 }

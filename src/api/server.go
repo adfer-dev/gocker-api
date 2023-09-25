@@ -13,8 +13,10 @@ type APIServer struct {
 
 func (server *APIServer) Run() error {
 	router := mux.NewRouter()
+	// init middlewares
 	router.Use(AuthMiddleware)
 	router.Use(ValidateIdParam)
+	// init all routes
 	initRoutes(router)
 
 	return http.ListenAndServe(server.ListenAddress, router)

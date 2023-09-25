@@ -3,7 +3,7 @@ package models
 type TokenKind int
 
 const (
-	Bearer TokenKind = iota + 1
+	Access TokenKind = iota + 1
 	Refresh
 )
 

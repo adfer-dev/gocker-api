@@ -80,9 +80,7 @@ func CreateUser(userBody UserBody) (user models.User, err error) {
 	return
 }
 
-func UpdateUser(id int) (user models.User, err error) {
-	var updatedUser UpdateUserBody
-
+func UpdateUser(id int, updatedUser UpdateUserBody) (user models.User, err error) {
 	database := database.GetInstance().GetDB()
 
 	if result := database.Find(&user, "id = ?", id); result.RowsAffected == 0 {

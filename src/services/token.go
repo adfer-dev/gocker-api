@@ -17,6 +17,15 @@ func GetTokensByUserReferAndKind(userRefer uint, kind models.TokenKind) (token m
 	return
 }
 
+func TokenExists(tokenString string) bool {
+	var token models.Token
+	database := database.GetInstance().GetDB()
+
+	result := database.Find(&token, "token_value LIKE ?", tokenString)
+
+	return result.RowsAffected > 0
+}
+
 func CreateToken(token *models.Token) {
 	database := database.GetInstance().GetDB()
 	database.Create(token)
@@ -29,4 +38,10 @@ func UpdateTokenValue(newTokenValue string) (token models.Token) {
 	database.Save(&token)
 
 	return
+}
+
+func DeleteToken(token models.Token) {
+	database := database.GetInstance().GetDB()
+
+	database.Delete(token)
 }

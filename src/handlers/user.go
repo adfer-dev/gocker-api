@@ -81,15 +81,8 @@ func handleCreateUser(res http.ResponseWriter, req *http.Request) error {
 }
 
 func handleUpdateUser(res http.ResponseWriter, req *http.Request) error {
-	var user models.User
 	var updatedUser services.UpdateUserBody
 	id, _ := strconv.Atoi(mux.Vars(req)["id"])
-
-	database := database.GetInstance().GetDB()
-
-	if result := database.Find(&user, "id = ?", id); result.RowsAffected == 0 {
-		return utils.WriteJSON(res, 404, utils.ApiError{Error: "User not found."})
-	}
 
 	if parseErr := utils.ReadJSON(req.Body, &updatedUser); parseErr != nil {
 		if errors, ok := parseErr.(validator.ValidationErrors); ok {
@@ -104,17 +97,12 @@ func handleUpdateUser(res http.ResponseWriter, req *http.Request) error {
 			return utils.WriteJSON(res, 400, utils.ApiError{Error: "not valid json."})
 		}
 	}
-	if updatedUser.FirstName != "" {
-		user.FirstName = updatedUser.FirstName
-	}
-	if updatedUser.Email != "" {
-		user.Email = updatedUser.Email
-	}
-	if updatedUser.Password != "" {
-		user.EncodePassword(updatedUser.Password)
-	}
 
-	database.Save(&user)
+	user, notFoundErr := services.UpdateUser(id, updatedUser)
+
+	if notFoundErr != nil {
+		return utils.WriteJSON(res, 404, utils.ApiError{Error: "user not found"})
+	}
 
 	return utils.WriteJSON(res, 201, CreateResponseUser(user))
 }
