@@ -14,6 +14,7 @@ type ApiError struct {
 
 type APIFunc func(res http.ResponseWriter, req *http.Request) error
 
+// Function that parses an APIFunc function to a http.HandlerFunc function
 func ParseToHandlerFunc(f APIFunc) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
 
@@ -24,10 +25,7 @@ func ParseToHandlerFunc(f APIFunc) http.HandlerFunc {
 	}
 }
 
-// MIDDLEWARES
-
-//UTILITY FUNCTIONS
-
+// Function that writes out a value with the specified code
 func WriteJSON(res http.ResponseWriter, status int, value any) error {
 
 	res.Header().Add("Content-Type", "application/json")
@@ -36,6 +34,7 @@ func WriteJSON(res http.ResponseWriter, status int, value any) error {
 	return json.NewEncoder(res).Encode(value)
 }
 
+// Function that reads content from the request body, validating it aswell
 func ReadJSON(reader io.Reader, body interface{}) error {
 
 	if deserializeErr := json.NewDecoder(reader).Decode(body); deserializeErr != nil {
@@ -49,7 +48,7 @@ func ReadJSON(reader io.Reader, body interface{}) error {
 	return nil
 }
 
-//Auxiliary functions
+// AUX FUNCTIONS
 
 // Function to validate a request's body.
 func validateBody(body interface{}) error {

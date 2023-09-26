@@ -96,5 +96,5 @@ func (user User) ComparePassword(password string) error {
 func getPasswordKey() (string, error) {
 	envErr := godotenv.Load()
 
-	return os.Getenv("PASSWORD_KEY"), envErr
+	return os.Getenv("USER_PASSWORD_KEY"), envErr
 }

@@ -3,6 +3,7 @@ package api
 import (
 	"errors"
 	"gocker-api/auth"
+	"gocker-api/models"
 	"gocker-api/services"
 	"gocker-api/utils"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/golang-jwt/jwt"
 	"github.com/gorilla/mux"
 )
 
@@ -58,7 +60,7 @@ func ValidateIdParam(next http.Handler) http.Handler {
 
 // AUX FUNCTIONS
 
-// Function that performs checks if a request is authorized
+// Function that checks if a request is authorized
 func checkAuth(req *http.Request) error {
 	fullToken := req.Header.Get("Authorization")
 
@@ -70,11 +72,15 @@ func checkAuth(req *http.Request) error {
 
 	//Validate token
 	if err := auth.ValidateToken(tokenString); err != nil {
-		//If token is not valid beacause it is expired
-		return err
+		if err.(*jwt.ValidationError).Errors == jwt.ValidationErrorExpired {
+			return errors.New("token expired. Please, get a new one at /auth/refresh-token")
+		} else {
+			return errors.New("token not valid")
+		}
 	}
 
-	if !services.TokenExists(tokenString) {
+	//Then check if token is in the database
+	if _, tokenNotFoundErr := services.GetTokenByValue(tokenString); tokenNotFoundErr != nil {
 		return errors.New("token revoked")
 	}
 
@@ -86,7 +92,7 @@ func checkAuth(req *http.Request) error {
 
 	user, _ := services.GetUserByEmail(claims["email"].(string))
 
-	if (req.Method == "POST" || req.Method == "PUT" || req.Method == "DELETE") && user.Role != 1 {
+	if (req.Method == "POST" || req.Method == "PUT" || req.Method == "DELETE") && user.Role != models.Admin {
 		return errors.New("method not allowed")
 	}
 

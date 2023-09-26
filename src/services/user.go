@@ -52,6 +52,12 @@ func GetUserByEmail(email string) (user models.User, err error) {
 
 func CreateUser(userBody UserBody) (user models.User, err error) {
 
+	// first check that the user email has not already been registered
+	if _, notFoundErr := GetUserByEmail(userBody.Email); notFoundErr == nil {
+		err = errors.New("email already registered")
+		return
+	}
+
 	if envErr := godotenv.Load(); envErr != nil {
 		err = envErr
 		return
@@ -60,7 +66,7 @@ func CreateUser(userBody UserBody) (user models.User, err error) {
 	var userRole models.UserRole
 	database := database.GetInstance().GetDB()
 
-	// Set registered user's role
+	// Set user properties
 	if userBody.Email == os.Getenv("ADMIN_EMAIL") {
 		userRole = models.Admin
 	} else {

@@ -16,6 +16,7 @@ type RefreshTokenRequest struct {
 	RefreshToken string `json:"refresh_token" validate:"required"`
 }
 
+// Function that registers a new user to the API, returning access token and refresh token
 func RegisterUser(userBody UserBody) (accessToken models.Token, refreshToken models.Token, err error) {
 	// Save a new user into the database
 	user, parseErr := CreateUser(userBody)
@@ -58,6 +59,7 @@ func RegisterUser(userBody UserBody) (accessToken models.Token, refreshToken mod
 	return
 }
 
+// Function that authenticates a user, returning a new access token and refresh token
 func AuthenticateUser(userAuth UserAuthenticateBody) (accessToken models.Token, refreshToken models.Token, err error) {
 	//Checking if user exists and if password matches
 	user, notFoundErr := GetUserByEmail(userAuth.Email)
@@ -106,6 +108,7 @@ func AuthenticateUser(userAuth UserAuthenticateBody) (accessToken models.Token, 
 	return
 }
 
+// Function that refresh a user access token, providing him a new one
 func RefreshToken(request RefreshTokenRequest) (accessToken models.Token, err error) {
 	// Check if refresh token is valid
 	if jwtErr := auth.ValidateToken(request.RefreshToken); jwtErr != nil {

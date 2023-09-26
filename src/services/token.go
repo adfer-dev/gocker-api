@@ -6,40 +6,26 @@ import (
 	"gocker-api/models"
 )
 
-func GetTokensByUserReferAndKind(userRefer uint, kind models.TokenKind) (token models.Token, err error) {
+// Function that gets a token by its value
+func GetTokenByValue(tokenString string) (token models.Token, err error) {
 	database := database.GetInstance().GetDB()
-	result := database.Find(&token, "user_refer = ? AND kind = ?", userRefer, kind)
+
+	result := database.Find(&token, "token_value LIKE ?", tokenString)
 
 	if result.RowsAffected == 0 {
-		err = errors.New("user not found")
+		err = errors.New("token not found")
 	}
 
 	return
 }
 
-func TokenExists(tokenString string) bool {
-	var token models.Token
-	database := database.GetInstance().GetDB()
-
-	result := database.Find(&token, "token_value LIKE ?", tokenString)
-
-	return result.RowsAffected > 0
-}
-
+// Function that saves a token to the database
 func CreateToken(token *models.Token) {
 	database := database.GetInstance().GetDB()
 	database.Create(token)
 }
 
-func UpdateTokenValue(newTokenValue string) (token models.Token) {
-	database := database.GetInstance().GetDB()
-
-	token.TokenValue = newTokenValue
-	database.Save(&token)
-
-	return
-}
-
+// Function that deletes a token from the database
 func DeleteToken(token models.Token) {
 	database := database.GetInstance().GetDB()
 

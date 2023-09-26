@@ -51,7 +51,7 @@ func handleRegisterUser(res http.ResponseWriter, req *http.Request) error {
 	accessToken, refreshToken, err := services.RegisterUser(userBody)
 
 	if err != nil {
-		return err
+		return utils.WriteJSON(res, 500, utils.ApiError{Error: err.Error()})
 	}
 
 	return utils.WriteJSON(res, 201, AuthenticationResponse{TokenValue: accessToken.TokenValue, RefreshTokenValue: refreshToken.TokenValue})
