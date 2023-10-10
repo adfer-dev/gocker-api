@@ -4,6 +4,7 @@ import (
 	"errors"
 	"gocker-api/database"
 	"gocker-api/models"
+	"gocker-api/storage"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -21,6 +22,8 @@ type UpdateUserBody struct {
 	Password  string `json:"password"`
 }
 
+var userStorage storage.Storage = &storage.UserStorage{}
+
 func GetAllUsers() []models.User {
 	var users []models.User
 
@@ -30,17 +33,19 @@ func GetAllUsers() []models.User {
 	return users
 }
 
-func GetUserById(id int) (user models.User, err error) {
-	database := database.GetInstance().GetDB()
+func GetUserById(id int) (*models.User, error) {
 
-	if result := database.Find(&user, "id = ?", id); result.RowsAffected == 0 {
-		err = errors.New("user not found")
+	// don't check the type assertion, since we are sure that the Get method is returning *models.User
+	user, err := userStorage.Get(id)
+
+	if err != nil {
+		return nil, err
 	}
 
-	return
+	return user.(*models.User), nil
 }
 
-func GetUserByEmail(email string) (user models.User, err error) {
+func GetUserByEmail(email string) (user *models.User, err error) {
 	database := database.GetInstance().GetDB()
 
 	if result := database.Find(&user, "email LIKE ?", email); result.RowsAffected == 0 {
@@ -50,21 +55,18 @@ func GetUserByEmail(email string) (user models.User, err error) {
 	return
 }
 
-func CreateUser(userBody UserBody) (user models.User, err error) {
+func CreateUser(userBody UserBody) (*models.User, error) {
 
 	// first check that the user email has not already been registered
 	if _, notFoundErr := GetUserByEmail(userBody.Email); notFoundErr == nil {
-		err = errors.New("email already registered")
-		return
+		return nil, errors.New("email already registered")
 	}
 
 	if envErr := godotenv.Load(); envErr != nil {
-		err = envErr
-		return
+		return nil, envErr
 	}
 
 	var userRole models.UserRole
-	database := database.GetInstance().GetDB()
 
 	// Set user properties
 	if userBody.Email == os.Getenv("ADMIN_EMAIL") {
@@ -73,7 +75,7 @@ func CreateUser(userBody UserBody) (user models.User, err error) {
 		userRole = models.Standard
 	}
 
-	user = models.User{
+	user := &models.User{
 		FirstName: userBody.FirstName,
 		Email:     userBody.Email,
 		Password:  nil,
@@ -81,17 +83,17 @@ func CreateUser(userBody UserBody) (user models.User, err error) {
 	}
 
 	user.EncodePassword(userBody.Password)
-	database.Create(&user)
+	createErr := userStorage.Create(user)
 
-	return
+	return user, createErr
 }
 
-func UpdateUser(id int, updatedUser UpdateUserBody) (user models.User, err error) {
+func UpdateUser(id int, updatedUser UpdateUserBody) (*models.User, error) {
+	var user *models.User
 	database := database.GetInstance().GetDB()
 
 	if result := database.Find(&user, "id = ?", id); result.RowsAffected == 0 {
-		err = errors.New("user not found")
-		return
+		return nil, errors.New("user not found")
 	}
 
 	if updatedUser.FirstName != "" {
@@ -104,19 +106,21 @@ func UpdateUser(id int, updatedUser UpdateUserBody) (user models.User, err error
 		user.EncodePassword(updatedUser.Password)
 	}
 
-	database.Save(&user)
+	updateErr := userStorage.Update(user)
 
-	return
+	return user, updateErr
 }
 
-func DeleteUser(id int) error {
-	var user models.User
+func DeleteUser(id int) (err error) {
+	var user *models.User
 	database := database.GetInstance().GetDB()
 
-	if result := database.Find(&user, "id = ?", id); result.RowsAffected == 0 {
-		return errors.New("user not found")
+	if result := database.Find(user, "id = ?", id); result.Error != nil {
+		err = errors.New("user not found")
+		return
 	}
-	database.Delete(user)
 
-	return nil
+	err = userStorage.Delete(user)
+
+	return
 }

@@ -44,13 +44,13 @@ func handleGetUsers(res http.ResponseWriter, req *http.Request) error {
 func handleGetUser(res http.ResponseWriter, req *http.Request) error {
 	id, _ := strconv.Atoi(mux.Vars(req)["id"])
 
-	user, err := services.GetUserById(id)
+	user, notFoundErr := services.GetUserById(id)
 
-	if err != nil {
-		utils.WriteJSON(res, 404, utils.ApiError{Error: err.Error()})
+	if notFoundErr != nil {
+		return utils.WriteJSON(res, 404, utils.ApiError{Error: notFoundErr.Error()})
 	}
 
-	return utils.WriteJSON(res, 200, CreateResponseUser(user))
+	return utils.WriteJSON(res, 200, CreateResponseUser(*user))
 }
 
 func handleCreateUser(res http.ResponseWriter, req *http.Request) error {
@@ -77,7 +77,7 @@ func handleCreateUser(res http.ResponseWriter, req *http.Request) error {
 		return utils.WriteJSON(res, 500, err.Error())
 	}
 
-	return utils.WriteJSON(res, 201, CreateResponseUser(user))
+	return utils.WriteJSON(res, 201, CreateResponseUser(*user))
 }
 
 func handleUpdateUser(res http.ResponseWriter, req *http.Request) error {
@@ -104,7 +104,7 @@ func handleUpdateUser(res http.ResponseWriter, req *http.Request) error {
 		return utils.WriteJSON(res, 404, utils.ApiError{Error: "user not found"})
 	}
 
-	return utils.WriteJSON(res, 201, CreateResponseUser(user))
+	return utils.WriteJSON(res, 201, CreateResponseUser(*user))
 }
 
 func handleDeleteUser(res http.ResponseWriter, req *http.Request) error {

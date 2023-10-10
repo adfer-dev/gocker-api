@@ -19,10 +19,11 @@ const (
 )
 
 type User struct {
-	ID        uint   `json:"id" gorm:"primaryKey"`
-	FirstName string `json:"first_name" validate:"required"`
-	Email     string `json:"email" validate:"required"`
-	Password  []byte `json:"password" validate:"required"`
+	ID        uint    `json:"id" gorm:"primaryKey"`
+	FirstName string  `json:"first_name" validate:"required"`
+	Email     string  `json:"email" validate:"required"`
+	Password  []byte  `json:"password" validate:"required"`
+	Tokens    []Token `gorm:"foreignKey:UserRefer;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 	Role      UserRole
 }
 

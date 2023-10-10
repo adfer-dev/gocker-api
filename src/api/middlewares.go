@@ -59,7 +59,6 @@ func ValidateIdParam(next http.Handler) http.Handler {
 }
 
 // AUX FUNCTIONS
-
 // Function that checks if a request is authorized
 func checkAuth(req *http.Request) error {
 	fullToken := req.Header.Get("Authorization")

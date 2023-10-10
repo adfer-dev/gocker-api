@@ -27,7 +27,7 @@ func RegisterUser(userBody UserBody) (accessToken models.Token, refreshToken mod
 	}
 
 	//Generate both an access token and a refresh token for that user and save them to the databse
-	tokenString, tokenErr := auth.GenerateToken(user, models.Access)
+	tokenString, tokenErr := auth.GenerateToken(*user, models.Access)
 
 	if tokenErr != nil {
 		err = tokenErr
@@ -40,7 +40,7 @@ func RegisterUser(userBody UserBody) (accessToken models.Token, refreshToken mod
 		Kind:       models.Access,
 	}
 
-	refreshTokenString, refreshTokenErr := auth.GenerateToken(user, models.Refresh)
+	refreshTokenString, refreshTokenErr := auth.GenerateToken(*user, models.Refresh)
 
 	if refreshTokenErr != nil {
 		err = refreshTokenErr
@@ -73,10 +73,10 @@ func AuthenticateUser(userAuth UserAuthenticateBody) (accessToken models.Token, 
 	}
 
 	//Revoke all user previous tokens
-	revokeAllUserTokens(user)
+	revokeAllUserTokens(*user)
 
 	//Generate a new access token and refresh token
-	newAccessToken, accessTokenErr := auth.GenerateToken(user, models.Access)
+	newAccessToken, accessTokenErr := auth.GenerateToken(*user, models.Access)
 
 	if accessTokenErr != nil {
 		err = accessTokenErr
@@ -89,7 +89,7 @@ func AuthenticateUser(userAuth UserAuthenticateBody) (accessToken models.Token, 
 		Kind:       models.Access,
 	}
 
-	newRefreshToken, refreshTokenErr := auth.GenerateToken(user, models.Refresh)
+	newRefreshToken, refreshTokenErr := auth.GenerateToken(*user, models.Refresh)
 
 	if accessTokenErr != nil {
 		err = refreshTokenErr
@@ -134,7 +134,7 @@ func RefreshToken(request RefreshTokenRequest) (accessToken models.Token, err er
 	database := database.GetInstance().GetDB()
 
 	database.Find(&accessToken, "user_refer = ? AND kind = ?", user.ID, models.Access)
-	newTokenString, tokenErr := auth.GenerateToken(user, models.Access)
+	newTokenString, tokenErr := auth.GenerateToken(*user, models.Access)
 
 	if tokenErr != nil {
 		err = tokenErr
