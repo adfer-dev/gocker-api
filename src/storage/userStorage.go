@@ -8,6 +8,8 @@ import (
 
 type UserStorage struct{}
 
+const userTypeMismatchErr = "must be type user"
+
 func (userStorage *UserStorage) Get(id int) (interface{}, error) {
 	var user *models.User
 	database := database.GetInstance().GetDB()
@@ -21,7 +23,7 @@ func (userStorage *UserStorage) Create(item interface{}) error {
 	user, ok := item.(*models.User)
 
 	if !ok {
-		return errors.New("must be type user")
+		return errors.New(userTypeMismatchErr)
 	}
 
 	database := database.GetInstance().GetDB()
@@ -34,7 +36,7 @@ func (userStorage *UserStorage) Update(item interface{}) error {
 	user, ok := item.(*models.User)
 
 	if !ok {
-		return errors.New("must be type user")
+		return errors.New(userTypeMismatchErr)
 	}
 
 	database := database.GetInstance().GetDB()
@@ -46,7 +48,7 @@ func (userStorage *UserStorage) Delete(item interface{}) error {
 	user, ok := item.(*models.User)
 
 	if !ok {
-		return errors.New("must be type user")
+		return errors.New(userTypeMismatchErr)
 	}
 
 	database := database.GetInstance().GetDB()
