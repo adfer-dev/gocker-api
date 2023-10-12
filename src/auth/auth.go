@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt"
-	"github.com/joho/godotenv"
 )
 
 // Returns a new token as string and an error (if there was one)
@@ -87,11 +86,5 @@ func GetClaims(tokenString string) (jwt.MapClaims, error) {
 }
 
 func getSecretKey() ([]byte, error) {
-	envErr := godotenv.Load()
-
-	if envErr != nil {
-		return []byte{}, envErr
-	}
-
 	return []byte(os.Getenv("SECRET_KEY")), nil
 }

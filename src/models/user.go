@@ -7,8 +7,6 @@ import (
 	"errors"
 	"io"
 	"os"
-
-	"github.com/joho/godotenv"
 )
 
 type UserRole int
@@ -29,12 +27,7 @@ type User struct {
 
 // Function that encodes user's password using AES encryption.
 func (user *User) EncodePassword(password string) error {
-	key, envErr := getPasswordKey()
-
-	if envErr != nil {
-		return envErr
-	}
-
+	key := getPasswordKey()
 	cipherBlock, cipherErr := aes.NewCipher([]byte(key))
 
 	if cipherErr != nil {
@@ -60,11 +53,7 @@ func (user *User) EncodePassword(password string) error {
 
 // Function that decodes user's password using AES decryption and compares it to the input password.
 func (user User) ComparePassword(password string) error {
-	key, envErr := getPasswordKey()
-
-	if envErr != nil {
-		return envErr
-	}
+	key := getPasswordKey()
 
 	cipherBlock, cipherErr := aes.NewCipher([]byte(key))
 
@@ -94,8 +83,6 @@ func (user User) ComparePassword(password string) error {
 	return nil
 }
 
-func getPasswordKey() (string, error) {
-	envErr := godotenv.Load()
-
-	return os.Getenv("USER_PASSWORD_KEY"), envErr
+func getPasswordKey() string {
+	return os.Getenv("USER_PASSWORD_KEY")
 }

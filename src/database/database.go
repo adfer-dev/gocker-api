@@ -6,7 +6,6 @@ import (
 	"os"
 	"sync"
 
-	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -28,12 +27,6 @@ func GetInstance() *Database {
 	defer lock.Unlock()
 
 	if databaseInstance == nil {
-		envErr := godotenv.Load()
-
-		if envErr != nil {
-			log.Fatal(envErr.Error())
-		}
-
 		db, dbErr := gorm.Open(postgres.Open(os.Getenv("DB_STRING")), &gorm.Config{})
 
 		if dbErr != nil {

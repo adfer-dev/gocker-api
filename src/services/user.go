@@ -6,8 +6,6 @@ import (
 	"gocker-api/models"
 	"gocker-api/storage"
 	"os"
-
-	"github.com/joho/godotenv"
 )
 
 type UserBody struct {
@@ -60,10 +58,6 @@ func CreateUser(userBody UserBody) (*models.User, error) {
 	// first check that the user email has not already been registered
 	if _, notFoundErr := GetUserByEmail(userBody.Email); notFoundErr == nil {
 		return nil, errors.New("email already registered")
-	}
-
-	if envErr := godotenv.Load(); envErr != nil {
-		return nil, envErr
 	}
 
 	var userRole models.UserRole
