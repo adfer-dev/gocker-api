@@ -17,7 +17,7 @@ type RefreshTokenRequest struct {
 }
 
 // Function that registers a new user to the API, returning access token and refresh token
-func RegisterUser(userBody UserBody) (accessToken models.Token, refreshToken models.Token, err error) {
+func RegisterUser(userBody UserBody) (accessToken *models.Token, refreshToken *models.Token, err error) {
 	// Save a new user into the database
 	user, parseErr := CreateUser(userBody)
 
@@ -34,7 +34,7 @@ func RegisterUser(userBody UserBody) (accessToken models.Token, refreshToken mod
 		return
 	}
 
-	accessToken = models.Token{
+	accessToken = &models.Token{
 		TokenValue: tokenString,
 		UserRefer:  user.ID,
 		Kind:       models.Access,
@@ -47,20 +47,20 @@ func RegisterUser(userBody UserBody) (accessToken models.Token, refreshToken mod
 		return
 	}
 
-	refreshToken = models.Token{
+	refreshToken = &models.Token{
 		TokenValue: refreshTokenString,
 		UserRefer:  user.ID,
 		Kind:       models.Refresh,
 	}
 
-	CreateToken(&accessToken)
-	CreateToken(&refreshToken)
+	CreateToken(accessToken)
+	CreateToken(refreshToken)
 
 	return
 }
 
 // Function that authenticates a user, returning a new access token and refresh token
-func AuthenticateUser(userAuth UserAuthenticateBody) (accessToken models.Token, refreshToken models.Token, err error) {
+func AuthenticateUser(userAuth UserAuthenticateBody) (accessToken *models.Token, refreshToken *models.Token, err error) {
 	//Checking if user exists and if password matches
 	user, notFoundErr := GetUserByEmail(userAuth.Email)
 
@@ -83,7 +83,7 @@ func AuthenticateUser(userAuth UserAuthenticateBody) (accessToken models.Token, 
 		return
 	}
 
-	accessToken = models.Token{
+	accessToken = &models.Token{
 		TokenValue: newAccessToken,
 		UserRefer:  user.ID,
 		Kind:       models.Access,
@@ -96,20 +96,20 @@ func AuthenticateUser(userAuth UserAuthenticateBody) (accessToken models.Token, 
 		return
 	}
 
-	refreshToken = models.Token{
+	refreshToken = &models.Token{
 		TokenValue: newRefreshToken,
 		UserRefer:  user.ID,
 		Kind:       models.Refresh,
 	}
 
-	CreateToken(&accessToken)
-	CreateToken(&refreshToken)
+	CreateToken(accessToken)
+	CreateToken(refreshToken)
 
 	return
 }
 
 // Function that refresh a user access token, providing him a new one
-func RefreshToken(request RefreshTokenRequest) (accessToken models.Token, err error) {
+func RefreshToken(request RefreshTokenRequest) (accessToken *models.Token, err error) {
 	// Check if refresh token is valid
 	if jwtErr := auth.ValidateToken(request.RefreshToken); jwtErr != nil {
 		err = jwtErr
@@ -150,14 +150,18 @@ func RefreshToken(request RefreshTokenRequest) (accessToken models.Token, err er
 // AUX FUNCTIONS
 
 // Function that revokes all tokens of the specified user, by deleting them
-func revokeAllUserTokens(user models.User) {
-	var tokens []models.Token
+func revokeAllUserTokens(user models.User) error {
+	var tokens []*models.Token
 	database := database.GetInstance().GetDB()
 
 	database.Find(&tokens, "user_refer = ?", user.ID)
 
 	for _, token := range tokens {
-		DeleteToken(token)
+
+		if err := DeleteToken(token); err != nil {
+			return err
+		}
 	}
 
+	return nil
 }

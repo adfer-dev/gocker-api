@@ -20,15 +20,16 @@ func GetTokenById(id int) (*models.Token, error) {
 }
 
 // Function that gets a token by its value
-func GetTokenByValue(tokenString string) (token models.Token, err error) {
+func GetTokenByValue(tokenString string) (*models.Token, error) {
+	var token *models.Token
 	database := database.GetInstance().GetDB()
 	result := database.Find(&token, "token_value LIKE ?", tokenString)
 
 	if result.RowsAffected == 0 {
-		err = errors.New("token not found")
+		return nil, errors.New("token not found")
 	}
 
-	return
+	return token, nil
 }
 
 // Function that saves a token to the database
@@ -41,8 +42,6 @@ func CreateToken(token *models.Token) (*models.Token, error) {
 }
 
 // Function that deletes a token from the database
-func DeleteToken(token models.Token) {
-	database := database.GetInstance().GetDB()
-
-	database.Delete(token)
+func DeleteToken(token *models.Token) error {
+	return tokenStorage.Delete(token)
 }
